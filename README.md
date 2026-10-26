@@ -6,15 +6,22 @@ Transfer-learning image classifier (ResNet-50 / EfficientNet-B0) with a full GPU
 
 ## Results
 
-> Measured on a Google Colab T4 GPU.
+All numbers were measured on a free Google Colab **T4 GPU** and can be reproduced with the commands below.
 
-| Stage | Metric | Result |
-|-------|--------|--------|
-| Training | Best validation accuracy (transfer learning, ResNet-50 / EfficientNet-B0) | **98.22%** |
-| Preprocessing | RAPIDS.ai cuDF vs Pandas | **8x faster** |
-| Memory | FP16 mixed precision vs FP32 | GPU memory **8 GB to 4.8 GB (-40%)** |
-| Custom kernel | Autotuned Triton fused normalize vs sequential | **2.0x speedup** |
-| Inference | TensorRT FP16 vs PyTorch FP32 | Run `python inference.py` to benchmark on your GPU |
+| Stage | What was measured | Result |
+|-------|-------------------|--------|
+| Training | ResNet-50 transfer learning, 10 epochs, Imagenette (10 classes, 9,469 train / 3,925 validation images) | **98.29%** validation accuracy |
+| Mixed precision | FP16 vs FP32, one ResNet-50 training step (`memory_benchmark.py`) | peak GPU memory 1,710 MB to 1,072 MB (**-37%**), **2.3x** faster per step |
+| Custom kernel | Autotuned Triton fused normalisation vs sequential PyTorch (`cuda_kernels.py`) | 1.7x at batch 8, **2.0x from batch 32 up**; output matches the reference (max difference 1.9e-6) |
+| Preprocessing | RAPIDS cuDF vs pandas, normalise + filter + join + group-by + sort (`gpu_pipeline_benchmark.py`) | **8.5x** at 10M rows end to end (including copying to the GPU and back); **13.6x** at 20M rows compute only |
+| Inference | TensorRT FP16 vs PyTorch FP32 | not benchmarked yet (`python inference.py`) |
+
+**Honest notes**
+- Imagenette is an easy 10-class dataset, so 98% shows the pipeline works, not that it would reach this on a hard dataset.
+- GPU preprocessing only pays off on larger tables or heavier work. A light single-pass normalisation (`preprocessing.py`) gave just 1.1x to 1.4x at 1M to 20M rows, because copying data to the GPU dominates.
+- Only ResNet-50 was trained for the numbers above; EfficientNet-B0 is supported (`--model efficientnet_b0`) but not reported.
+
+Training curves and the confusion matrix are in `training_curves.png` and `confusion_matrix.png`.
 
 ## What makes this more than a basic transfer-learning script
 
@@ -29,7 +36,7 @@ Transfer-learning image classifier (ResNet-50 / EfficientNet-B0) with a full GPU
 ## Architecture
 
 ```
-10,000+ images (raw dataset)
+Imagenette: ~13,400 images, 10 classes
         |
 RAPIDS.ai cuDF preprocessing, benchmarked across dataset sizes -> preprocessing.py
         |
@@ -50,6 +57,8 @@ TensorRT-optimized inference, benchmarked across batch sizes -> inference.py
 - `preprocessing.py` - RAPIDS.ai cuDF GPU preprocessing, benchmarked across dataset sizes with a saved speedup chart
 - `cuda_kernels.py` - autotuned custom Triton kernel for fused image normalization, with correctness check + batch-size benchmark sweep
 - `inference.py` - TensorRT-optimized inference, loads the real train.py checkpoint, benchmarked across batch sizes
+- `memory_benchmark.py` - peak GPU memory and step time, FP32 vs FP16
+- `gpu_pipeline_benchmark.py` - RAPIDS cuDF vs pandas on a realistic tabular pipeline, with and without GPU transfer
 - `requirements.txt` - dependencies
 
 ## Quick Start
@@ -66,11 +75,12 @@ tar -xzf imagenette2-160.tgz
 # 2. Train (saves checkpoints/best_model.pth, training_curves.png, confusion_matrix.png)
 python train.py --data-dir imagenette2-160 --model resnet50 --epochs 10
 
-# 3. Benchmark the custom kernel
+# 3. Benchmark the custom kernel and mixed precision
 python cuda_kernels.py
+python memory_benchmark.py
 
 # 4. Benchmark RAPIDS preprocessing (see RAPIDS install below)
-python preprocessing.py
+python gpu_pipeline_benchmark.py
 
 # 5. Benchmark TensorRT inference (needs the checkpoint from step 2)
 python inference.py
