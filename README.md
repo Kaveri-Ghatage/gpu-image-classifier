@@ -10,7 +10,7 @@ All numbers were measured on a free Google Colab **T4 GPU** and can be reproduce
 
 | Stage | What was measured | Result |
 |-------|-------------------|--------|
-| Training | ResNet-50 transfer learning, 10 epochs, Imagenette (10 classes, 9,469 train / 3,925 validation images) | **98.29%** validation accuracy |
+| Training | ResNet-50 transfer learning, 10 epochs, Imagenette (10 classes, 9,469 train / 3,925 validation images) | **98.24%** validation accuracy |
 | Mixed precision | FP16 vs FP32, one ResNet-50 training step (`memory_benchmark.py`) | peak GPU memory 1,710 MB to 1,072 MB (**-37%**), **2.3x** faster per step |
 | Custom kernel | Autotuned Triton fused normalisation vs sequential PyTorch (`cuda_kernels.py`) | 1.7x at batch 8, **2.0x from batch 32 up**; output matches the reference (max difference 1.9e-6) |
 | Preprocessing | RAPIDS cuDF vs pandas, normalise + filter + join + group-by + sort (`gpu_pipeline_benchmark.py`) | **8.5x** at 10M rows end to end (including copying to the GPU and back); **13.6x** at 20M rows compute only |
