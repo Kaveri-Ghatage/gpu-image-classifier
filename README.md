@@ -79,17 +79,15 @@ python train.py --data-dir imagenette2-160 --model resnet50 --epochs 10
 python cuda_kernels.py
 python memory_benchmark.py
 
-# 4. Benchmark RAPIDS preprocessing (see RAPIDS install below)
+# 4. Benchmark RAPIDS preprocessing (needs a GPU runtime such as Colab)
 python gpu_pipeline_benchmark.py
 
 # 5. Benchmark TensorRT inference (needs the checkpoint from step 2)
 python inference.py
 ```
 
-### Installing RAPIDS.ai (Colab)
-```bash
-pip install --extra-index-url=https://pypi.nvidia.com cudf-cu12
-```
+### RAPIDS on Colab
+Colab's GPU runtime already includes cuDF, so do not pip-install it. Just run `python gpu_pipeline_benchmark.py`. Without a GPU the script still runs, but it only times pandas.
 
 ## Tech Stack
 PyTorch, torchvision, Triton, RAPIDS.ai (cuDF), TensorRT (torch2trt), scikit-learn, matplotlib, CUDA
